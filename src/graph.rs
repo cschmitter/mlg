@@ -27,12 +27,20 @@ impl RNode {
         self.borrow().parents.clone()
     }
 
+    pub fn get_children(&self) -> Vec<RNode> {
+        self.borrow().children.clone()
+    }
+
     pub fn get_name(&self) -> String {
         self.borrow().name.clone()
     }
 
     pub fn get_id(&self) -> u32 {
         self.borrow().id
+    }
+
+    pub fn get_depth(&self) -> u32 {
+        self.borrow().depth
     }
 }
 

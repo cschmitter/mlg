@@ -1,4 +1,3 @@
-use queues::*;
 use std::cmp::{Ordering, Reverse};
 use std::{
     collections::{BTreeSet, BinaryHeap},
@@ -8,68 +7,77 @@ use std::{
 pub mod graph;
 use graph::*;
 
-enum FrontierKind {
-    BTreeSet,
-    BinaryHeap,
-    Queue,
-}
+struct MinHeap<T>(BinaryHeap<Reverse<T>>)
+where
+    T: Ord + Clone;
 
-enum Frontier<T>
+impl<T> MinHeap<T>
 where
     T: Ord + Clone,
 {
-    Set(BTreeSet<T>),
-    Heap(BinaryHeap<Reverse<T>>),
-}
-
-impl<T> Frontier<T>
-where
-    T: Ord + Clone,
-{
-    fn new(allow_multiples: bool) -> Frontier<T> {
-        match allow_multiples {
-            true => Frontier::Heap(BinaryHeap::new()),
-            false => Frontier::Set(BTreeSet::new()),
-        }
+    fn new() -> MinHeap<T> {
+        MinHeap(BinaryHeap::new())
     }
 
     fn push(&mut self, t: T) {
-        match self {
-            Self::Set(set) => {
-                set.insert(t);
-            }
-            Self::Heap(heap) => {
-                heap.push(Reverse(t));
-            }
-        }
+        self.0.push(Reverse(t));
     }
 
     fn pop(&mut self) -> Option<T> {
-        match self {
-            Self::Set(set) => set.pop_first(),
-            Self::Heap(heap) => heap.pop().map(|t| t.0),
-        }
+        self.0.pop().map(|t| t.0)
     }
 
     fn size(&self) -> usize {
-        match self {
-            Self::Set(set) => set.len(),
-            Self::Heap(heap) => heap.len(),
-        }
+        self.0.len()
     }
 
     fn is_empty(&self) -> bool {
-        match self {
-            Self::Set(set) => set.is_empty(),
-            Self::Heap(heap) => heap.is_empty(),
-        }
+        self.0.is_empty()
     }
 
     fn contains(&self, t: &T) -> bool {
-        match self {
-            Self::Set(set) => set.contains(t),
-            Self::Heap(heap) => heap.clone().into_iter().any(|r| &r.0 == t),
-        }
+        self.0.iter().any(|r| &r.0 == t)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &T> {
+        self.0.iter().map(|r| &r.0)
+    }
+}
+
+struct MinSet<T>(BTreeSet<T>)
+where
+    T: Ord + Clone;
+
+impl<T> MinSet<T>
+where
+    T: Ord + Clone,
+{
+    fn new() -> MinSet<T> {
+        MinSet(BTreeSet::new())
+    }
+
+    fn push(&mut self, t: T) {
+        self.0.insert(t);
+    }
+
+    fn pop(&mut self) -> Option<T> {
+        self.0.pop_first()
+    }
+
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn contains(&self, t: &T) -> bool {
+        self.0.contains(t)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &T> {
+        self.0.iter()
     }
 }
 
@@ -79,8 +87,8 @@ fn find_ith_progenitor(s: &RNode, i: usize) -> Option<RNode> {
     }
 
     let mut i = i;
-    let mut frontier: Frontier<RNode> = Frontier::new(false);
-    let mut nodes: Frontier<RNode> = Frontier::new(false);
+    let mut frontier: MinSet<RNode> = MinSet::new();
+    let mut nodes: MinSet<RNode> = MinSet::new();
 
     let s_ref = s.borrow();
     println!("{}", s);
@@ -156,12 +164,13 @@ fn get_mlg(s: &RNode) -> Option<(Vec<(RNode, RNode)>, Vec<RNode>)> {
             None => return None,
         };
 
-        let mut frontier = BTreeSet::from([Pairing::new(s.clone(), s_prime.clone(), 0)]);
+        let mut frontier = MinHeap::new();
+        frontier.push(Pairing::new(s.clone(), s_prime.clone(), 0));
         let mut pairs: Vec<Pairing> = vec![];
 
-        'next_node: while frontier.len() > 0 {
+        'next_node: while !frontier.is_empty() {
             // get (n, n_prime) off stack
-            let mut p = frontier.pop_first().unwrap();
+            let mut p = frontier.pop().unwrap();
             // check n parents matches n_prime parents
             let paired_parents: Vec<Pairing> = zip(p.n.get_parents(), p.n_prime.get_parents())
                 .map(|(n, m)| Pairing::new(n, m, 0))
@@ -197,7 +206,7 @@ fn get_mlg(s: &RNode) -> Option<(Vec<(RNode, RNode)>, Vec<RNode>)> {
             println!("{}, {}, {:?} onto pairs", p.n, p.n_prime, p.iteration);
             pairs.push(p);
             for p in paired_parents {
-                frontier.insert(p);
+                frontier.push(p);
             }
             continue 'next_node;
         }
