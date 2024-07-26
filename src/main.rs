@@ -1,85 +1,11 @@
-use std::cmp::{Ordering, Reverse};
-use std::{
-    collections::{BTreeSet, BinaryHeap},
-    iter::zip,
-};
+use std::cmp::Ordering;
+use std::iter::zip;
 
 pub mod graph;
 use graph::*;
 
-struct MinHeap<T>(BinaryHeap<Reverse<T>>)
-where
-    T: Ord + Clone;
-
-impl<T> MinHeap<T>
-where
-    T: Ord + Clone,
-{
-    fn new() -> MinHeap<T> {
-        MinHeap(BinaryHeap::new())
-    }
-
-    fn push(&mut self, t: T) {
-        self.0.push(Reverse(t));
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        self.0.pop().map(|t| t.0)
-    }
-
-    fn size(&self) -> usize {
-        self.0.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn contains(&self, t: &T) -> bool {
-        self.0.iter().any(|r| &r.0 == t)
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &T> {
-        self.0.iter().map(|r| &r.0)
-    }
-}
-
-struct MinSet<T>(BTreeSet<T>)
-where
-    T: Ord + Clone;
-
-impl<T> MinSet<T>
-where
-    T: Ord + Clone,
-{
-    fn new() -> MinSet<T> {
-        MinSet(BTreeSet::new())
-    }
-
-    fn push(&mut self, t: T) {
-        self.0.insert(t);
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        self.0.pop_first()
-    }
-
-    fn size(&self) -> usize {
-        self.0.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn contains(&self, t: &T) -> bool {
-        self.0.contains(t)
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &T> {
-        self.0.iter()
-    }
-}
+pub mod frontier;
+use frontier::*;
 
 fn find_ith_progenitor(s: &RNode, i: usize) -> Option<RNode> {
     if i < 1 {
