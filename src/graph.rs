@@ -9,7 +9,7 @@ pub struct RNode(Rc<RefCell<Node>>);
 
 impl RNode {
     pub fn add(&self, n: &RNode) {
-        println!("{}->{}", n, self);
+        // println!("{}->{}", n, self);
         self.borrow_mut().parents.push(n.clone());
         self.borrow_mut().update_depth();
         n.borrow_mut().children.push(self.clone());
@@ -41,6 +41,14 @@ impl RNode {
 
     pub fn get_depth(&self) -> u32 {
         self.borrow().depth
+    }
+
+    pub fn get_iteration(&self) -> Option<u32> {
+        self.borrow().iteration
+    }
+
+    pub fn set_iteration(&self, i: Option<u32>) {
+        self.borrow_mut().iteration = i;
     }
 }
 
@@ -120,6 +128,7 @@ pub struct Node {
     pub name: String,
     pub id: u32,
     pub depth: u32,
+    pub iteration: Option<u32>,
     pub children: Vec<RNode>,
     pub parents: Vec<RNode>,
 }
@@ -144,20 +153,17 @@ impl Node {
             name,
             id: 0,
             depth: 0,
+            iteration: None,
             children: vec![],
             parents: vec![],
         }
-    }
-
-    fn set_depth(&mut self, depth: u32) {
-        self.depth = depth;
     }
 
     pub fn update_depth(&mut self) {
         for p in self.parents.iter() {
             let mut p = p.borrow_mut();
             let d = p.depth;
-            p.set_depth(max(d, self.depth + 1));
+            p.depth = max(d, self.depth + 1);
         }
 
         for p in self.parents.iter() {

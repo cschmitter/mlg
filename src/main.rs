@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::iter::zip;
 
 pub mod graph;
@@ -47,109 +47,90 @@ fn find_ith_progenitor(s: &RNode, i: usize) -> Option<RNode> {
     None
 }
 
-type Iteration = u32;
-
-#[derive(Clone, PartialEq, Eq)]
-struct Pairing {
-    n: RNode,
-    n_prime: RNode,
-    iteration: Iteration,
-    is_start_restart: bool,
-}
-
-impl Pairing {
-    fn new(n: RNode, n_prime: RNode, iteration: Iteration) -> Pairing {
-        Pairing {
-            n,
-            n_prime,
-            iteration,
-            is_start_restart: false,
+fn reset_iteration_vals(n: &RNode) {
+    if n.get_iteration() != None {
+        n.set_iteration(None);
+        for c in n.borrow().children.iter() {
+            reset_iteration_vals(c);
         }
     }
 }
 
-impl PartialOrd for Pairing {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.n.partial_cmp(&other.n)
-    }
-}
-
-impl Ord for Pairing {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.n.cmp(&other.n)
-    }
-}
-
-fn get_mlg(s: &RNode) -> Option<(Vec<(RNode, RNode)>, Vec<RNode>)> {
+fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
     let num_attempts = 4;
 
     'attempt: for i in 1..=num_attempts {
         println!("Attempt #{i}");
+
+        reset_iteration_vals(s);
+
         let s_prime = match find_ith_progenitor(s, i) {
             Some(s_prime) => s_prime,
             None => return None,
         };
 
         let mut frontier = MinHeap::new();
-        frontier.push(Pairing::new(s.clone(), s_prime.clone(), 0));
-        let mut pairs: Vec<Pairing> = vec![];
+        frontier.push((s.clone(), s_prime.clone()));
+        let mut pairs = BTreeMap::new();
 
         'next_node: while !frontier.is_empty() {
             // get (n, n_prime) off stack
-            let mut p = frontier.pop().unwrap();
+            let (n, n_prime) = frontier.pop().unwrap();
             // check n parents matches n_prime parents
-            let paired_parents: Vec<Pairing> = zip(p.n.get_parents(), p.n_prime.get_parents())
-                .map(|(n, m)| Pairing::new(n, m, 0))
-                .collect();
-            if paired_parents
-                .iter()
-                .any(|p| p.n.borrow().name != p.n_prime.borrow().name)
+            if zip(n.get_parents(), n_prime.get_parents())
+                .any(|(n, n_prime)| n.borrow().name != n_prime.borrow().name)
             {
                 continue 'attempt;
             }
 
-            for q in pairs.iter_mut() {
-                if q.iteration == 0 && p.n == q.n {
+            assert!(
+                n.get_iteration() == None
+                    || n_prime.get_iteration() == None
+                    || n.get_iteration().unwrap() + 1 == n_prime.get_iteration().unwrap()
+            );
+
+            match n.get_iteration() {
+                None => {
+                    n.set_iteration(Some(0));
+                    n_prime.set_iteration(Some(1));
+
+                    println!("{}, {}, {:?} onto pairs", n, n_prime, n.get_iteration());
+                    for p in zip(n.get_parents(), n_prime.get_parents()) {
+                        frontier.push(p);
+                    }
+                    pairs.insert(n, n_prime);
+                    continue 'next_node;
+                }
+                Some(0) => {
                     // if n is in graph check that n, n_prime correspond
-                    if p.n_prime == q.n_prime {
+                    if pairs
+                        .get(&n)
+                        .expect("all Nodes assigned iteration 0 are in pairs")
+                        == &n_prime
+                    {
                         continue 'next_node;
                     } else {
                         continue 'attempt;
                     }
-                } else if q.iteration == 0 && p.n == q.n_prime {
-                    // if n is in graph_prime mark n_prime as being in graph_prime_prime continue
-                    p.iteration = 1;
-                    q.is_start_restart = true;
-                    println!("{}, {}, {:?} onto pairs", p.n, p.n_prime, p.iteration);
-                    pairs.push(p);
-                    continue 'next_node;
-                } else if q.iteration == 1 && p.n == q.n_prime {
-                    // else if n is in graph_prime_prime STOP
-                    continue 'attempt;
                 }
-            }
-
-            println!("{}, {}, {:?} onto pairs", p.n, p.n_prime, p.iteration);
-            pairs.push(p);
-            for p in paired_parents {
-                frontier.push(p);
-            }
-            continue 'next_node;
-        }
-
-        let mut start_nodes = vec![];
-        let mut nodes = vec![];
-
-        for p in pairs.into_iter() {
-            if p.iteration == 0 && !p.is_start_restart {
-                nodes.push(p.n);
-            } else if p.iteration == 0 && p.is_start_restart {
-                nodes.push(p.n.clone());
-                start_nodes.push((p.n, p.n_prime));
+                Some(1) => {
+                    // if n is in graph_prime mark n_prime as being in graph_prime_prime continue
+                    n_prime.set_iteration(Some(2));
+                    println!("{}, {}, {:?} onto pairs", n, n_prime, n.get_iteration());
+                    pairs.insert(n, n_prime);
+                    continue 'next_node;
+                }
+                Some(2) => {
+                    // if n is in graph_prime_prime perform 3rd iteration reassignment
+                    // TODO
+                    continue 'next_node;
+                }
+                Some(3) => continue 'attempt,
+                _ => panic!("There shouldn't be any further assignments"),
             }
         }
 
-        return Some((start_nodes, nodes));
+        return Some(pairs);
     }
 
     None
@@ -280,17 +261,12 @@ pub mod tests {
 
     #[test]
     pub fn test_get_mlg() {
-        let graph = test_graph_abcd();
-        if let Some((start_nodes, nodes)) = get_mlg(&graph.sorted[2]) {
-            println!("Start Nodes");
-            for (n, n_prime) in start_nodes {
-                print!("({n},{n_prime}), ");
+        let graph = test_graph_layered();
+        if let Some(pairs) = get_mlg(&graph.sorted[5]) {
+            println!("Pairs");
+            for (n, n_prime) in pairs {
+                println!("({n},{n_prime}), {:?}", n.get_iteration());
             }
-            println!("\nNodes");
-            for n in nodes {
-                print!("{n}, ");
-            }
-            println!();
         } else {
             println!("Got None!");
         }
