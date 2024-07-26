@@ -56,6 +56,52 @@ fn reset_iteration_vals(n: &RNode) {
     }
 }
 
+fn thrd_it_reassignment(
+    n3: &RNode,
+    pairs: &mut BTreeMap<RNode, RNode>,
+    frontier: &mut MinHeap<(RNode, RNode)>,
+) {
+    let mut has_3rd_it_children = false;
+    for c in n3.borrow().children.iter() {
+        if c.get_iteration() == Some(2) {
+            has_3rd_it_children = true;
+            thrd_it_reassignment(c, pairs, frontier);
+        } else if c.get_iteration() == Some(0) {
+            let (c1, c2) = pairs
+                .remove_entry(c)
+                .expect("All iteration 0 nodes should be in pairs");
+            c1.set_iteration(None);
+            c2.set_iteration(None);
+            frontier.push((c1, c2));
+        }
+    }
+
+    let (n2, _) = pairs
+        .iter()
+        .find(|(_, n_prime)| n_prime == &n3)
+        .expect("n2 predecessor of n3 should be in pairs");
+    let (n1, _) = pairs
+        .iter()
+        .find(|(_, n_prime)| n_prime == &n2)
+        .expect("n1 predecessor of n2 should be in pairs");
+
+    let n1 = n1.clone();
+    let n2 = n2.clone();
+    let n3 = n3.clone();
+
+    println!("3rd ItR: {}, {}, {}", n1, n2, n3);
+    n1.set_iteration(None);
+    n2.set_iteration(None);
+    n3.set_iteration(None);
+
+    pairs.remove(&n1);
+    pairs.remove(&n2);
+
+    if !has_3rd_it_children {
+        frontier.push((n2, n3));
+    }
+}
+
 fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
     let num_attempts = 4;
 
@@ -122,7 +168,7 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                 }
                 Some(2) => {
                     // if n is in graph_prime_prime perform 3rd iteration reassignment
-                    // TODO
+                    thrd_it_reassignment(&n, &mut pairs, &mut frontier);
                     continue 'next_node;
                 }
                 Some(3) => continue 'attempt,
@@ -261,8 +307,8 @@ pub mod tests {
 
     #[test]
     pub fn test_get_mlg() {
-        let graph = test_graph_layered();
-        if let Some(pairs) = get_mlg(&graph.sorted[5]) {
+        let graph = test_graph_abcd();
+        if let Some(pairs) = get_mlg(&graph.sorted[1]) {
             println!("Pairs");
             for (n, n_prime) in pairs {
                 println!("({n},{n_prime}), {:?}", n.get_iteration());
