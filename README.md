@@ -1,3 +1,9 @@
+#Matching Loop Graph Prototype
+
+This project is a prototype for the matching loop graph generation algorithm to be used in 
+[the axiom profiler](https://github.com/viperproject/axiom-profiler-2).
+
+
 ```
 // takes an initial node s and an integer i
 // performs a backwards search visiting nodes of the deepest depth first
