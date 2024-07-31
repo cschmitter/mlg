@@ -34,19 +34,22 @@ Function find_ith_progenitor(s: Node, i: Integer) -> Node or None {
     None
 }
 
-\\ takes pair of 2nd and 3rd iteration node, set of all pairs in mlg, frontier of pairs to search
+\\ takes 3rd iteration node, set of all pairs in mlg, frontier of pairs to search
 \\ for each child of 3rd itartion node
 \\     if child is a 3rd iteration node, c3
-\\         get corresponding 2nd iteration node, c2
 \\         recursively apply thrd_it_reassignment
-\\ let n3 be the 3rd iteration node
+\\ let n1 be the 1st iteration node
 \\ let n2 be the 2nd iteration node
-\\ remove the pair (__, n2) from pairs:
+\\ let n3 be the 3rd iteration node
+\\ set n1.iteration to None
+\\ set n2.iteration to None
+\\ set n3.iteration to None
+\\ remove the pair (n1, n2) from pairs:
 \\     this corresponds to dropping n1 from the graph
-\\ decrement the iteration marker in the pair (n2, n3):
-\\     this corresponds to reassigning n2 to be the new n1 and n3 to be the new n2
-\\ push pair (n2, n3) to frontier:
-\\     this will result in correctly finding the new corresponding 3rd iteration start nodes and adding the pairs (n3, __) to pairs set
+\\ remove the pair (n2, n3) from pairs:
+\\     this corresponds to dropping n1 from the graph
+\\ if this is a leaf recursive call push pair (n2, n3) to frontier:
+\\     this will result in correctly finding the new corresponding 3rd iteration start nodes and adding the pairs (n3, __) to pairs
 fn thrd_it_reassignment() 
 
 \\ while for each recursively explained start nodes (in order of depth, deepest first)

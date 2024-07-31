@@ -56,16 +56,21 @@ fn reset_iteration_vals(n: &RNode) {
     }
 }
 
-fn thrd_it_reassignment(
+fn reassignment(
+    n1: &RNode,
+    n2: &RNode,
     n3: &RNode,
+    children: &Vec<RNode>,
+    condition: impl Fn(&RNode, &BTreeMap<RNode, RNode>) -> bool,
     pairs: &mut BTreeMap<RNode, RNode>,
     frontier: &mut MinHeap<(RNode, RNode)>,
+    caller: impl Fn(&RNode, &mut BTreeMap<RNode, RNode>, &mut MinHeap<(RNode, RNode)>),
 ) {
-    let mut has_3rd_it_children = false;
-    for c in n3.borrow().children.iter() {
-        if c.get_iteration() == Some(2) {
-            has_3rd_it_children = true;
-            thrd_it_reassignment(c, pairs, frontier);
+    let mut is_not_leaf_reassignment = false;
+    for c in children.iter() {
+        if condition(c, pairs) {
+            is_not_leaf_reassignment = true;
+            caller(c, pairs, frontier);
         } else if c.get_iteration() == Some(0) {
             let (c1, c2) = pairs
                 .remove_entry(c)
@@ -76,6 +81,23 @@ fn thrd_it_reassignment(
         }
     }
 
+    n1.set_iteration(None);
+    n2.set_iteration(None);
+    n3.set_iteration(None);
+
+    pairs.remove(&n1);
+    pairs.remove(&n2);
+
+    if !is_not_leaf_reassignment {
+        frontier.push((n2.clone(), n3.clone()));
+    }
+}
+
+fn thrd_it_reassignment(
+    n3: &RNode,
+    pairs: &mut BTreeMap<RNode, RNode>,
+    frontier: &mut MinHeap<(RNode, RNode)>,
+) {
     let (n2, _) = pairs
         .iter()
         .find(|(_, n_prime)| n_prime == &n3)
@@ -85,21 +107,71 @@ fn thrd_it_reassignment(
         .find(|(_, n_prime)| n_prime == &n2)
         .expect("n1 predecessor of n2 should be in pairs");
 
-    let n1 = n1.clone();
-    let n2 = n2.clone();
-    let n3 = n3.clone();
+    let condition = |n: &RNode, _p: &BTreeMap<RNode, RNode>| n.get_iteration() == Some(2);
 
     println!("3rd ItR: {}, {}, {}", n1, n2, n3);
-    n1.set_iteration(None);
-    n2.set_iteration(None);
-    n3.set_iteration(None);
+    reassignment(
+        &n1.clone(),
+        &n2.clone(),
+        n3,
+        &n3.borrow().children,
+        condition,
+        pairs,
+        frontier,
+        thrd_it_reassignment,
+    );
+}
 
-    pairs.remove(&n1);
-    pairs.remove(&n2);
+fn is_resn(r: &RNode, pairs: &BTreeMap<RNode, RNode>) -> bool {
+    let start_pairs: BTreeMap<&RNode, &RNode> = pairs
+        .iter()
+        .filter(|(n, _)| n.get_iteration() == Some(1))
+        .collect();
+    r.get_iteration() == Some(1)
+        && r.borrow()
+            .parents
+            .iter()
+            .all(|p| start_pairs.contains_key(p) || is_resn_helper(p, &start_pairs))
+}
 
-    if !has_3rd_it_children {
-        frontier.push((n2, n3));
+fn is_resn_helper(r: &RNode, start_pairs: &BTreeMap<&RNode, &RNode>) -> bool {
+    r.get_iteration() == Some(1)
+        && r.borrow()
+            .parents
+            .iter()
+            .all(|p| start_pairs.contains_key(p) || is_resn_helper(p, start_pairs))
+}
+
+fn resn_reassignment(
+    n2: &RNode,
+    pairs: &mut BTreeMap<RNode, RNode>,
+    frontier: &mut MinHeap<(RNode, RNode)>,
+) {
+    for (n, n_prime) in pairs.iter() {
+        println!("{n}, {n_prime}");
     }
+
+    println!("n2 = {n2}");
+
+    let n3 = pairs
+        .get(n2)
+        .expect("all resns (n2) should be paired with n3");
+    let (n1, _) = pairs
+        .iter()
+        .find(|(_, n_prime)| n_prime == &n2)
+        .expect("n1 predecessor of n2 should be in pairs");
+
+    println!("RESN R: {}, {}, {}", n1, n2, n3);
+    reassignment(
+        &n1.clone(),
+        n2,
+        &n3.clone(),
+        &n2.borrow().children,
+        is_resn,
+        pairs,
+        frontier,
+        resn_reassignment,
+    )
 }
 
 fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
@@ -163,7 +235,19 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                     // if n is in graph_prime mark n_prime as being in graph_prime_prime continue
                     n_prime.set_iteration(Some(2));
                     println!("{}, {}, {:?} onto pairs", n, n_prime, n.get_iteration());
-                    pairs.insert(n, n_prime);
+                    pairs.insert(n.clone(), n_prime);
+
+                    // check for recursively explained start nodes
+                    if is_resn(&n, &pairs) {
+                        resn_reassignment(&n, &mut pairs, &mut frontier);
+                    } else {
+                        for c in n.borrow().children.iter() {
+                            if is_resn(c, &pairs) {
+                                resn_reassignment(c, &mut pairs, &mut frontier);
+                            }
+                        }
+                    }
+
                     continue 'next_node;
                 }
                 Some(2) => {
