@@ -50,7 +50,8 @@ fn find_ith_progenitor(s: &RNode, i: usize) -> Option<RNode> {
 fn reset_iteration_vals(n: &RNode) {
     if n.get_iteration() != None {
         n.set_iteration(None);
-        for c in n.borrow().children.iter() {
+        println!("Set {} to None", n);
+        for c in n.borrow().parents.iter() {
             reset_iteration_vals(c);
         }
     }
@@ -206,8 +207,9 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
             // get (n, n_prime) off frontier
             let (n, n_prime) = frontier.pop().unwrap();
             // check n parents matches n_prime parents
-            if zip(n.get_parents(), n_prime.get_parents())
-                .any(|(n, n_prime)| n.borrow().name != n_prime.borrow().name)
+            if n.borrow().parents.len() != n_prime.borrow().parents.len()
+                || zip(n.borrow().parents.iter(), n_prime.borrow().parents.iter())
+                    .any(|(p, p_prime)| p.borrow().name != p_prime.borrow().name)
             {
                 continue 'attempt;
             }
@@ -394,6 +396,26 @@ pub mod tests {
         graph
     }
 
+    fn test_graph_path() -> Graph {
+        let mut graph = Graph::new();
+        for i in 0..10 {
+            let a = graph.add(Node::new("A".to_owned()));
+            let b = graph.add(Node::new("B".to_owned()));
+
+            if i > 0 {
+                let ns = &mut graph.nodes;
+                add_to_previous(&a, "A", 1, ns);
+                add_to_previous(&b, "B", 1, ns);
+                add_to_previous(&b, "A", 1, ns);
+                if i > 2 {
+                    add_to_previous(&a, "B", 2, ns);
+                }
+            }
+        }
+        graph.sorted.sort();
+        graph
+    }
+
     #[test]
     pub fn test_find_ith_progenitor() {
         let graph = test_graph_abcd();
@@ -429,8 +451,8 @@ pub mod tests {
 
     #[test]
     pub fn test_get_mlg() {
-        let graph = test_graph_abcd();
-        if let Some(pairs) = get_mlg(&graph.sorted[1]) {
+        let graph = test_graph_path();
+        if let Some(pairs) = get_mlg(&graph.sorted[0]) {
             println!("Pairs");
             for (n, n_prime) in pairs {
                 println!("({n},{n_prime}), {:?}", n.get_iteration());
