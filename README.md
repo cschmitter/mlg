@@ -3,6 +3,7 @@
 This project is a prototype for the matching loop graph generation algorithm to be used in 
 [the axiom profiler](https://github.com/viperproject/axiom-profiler-2).
 
+Below is pseudocode and some notes describing and explaining my approach.
 
 ```
 // takes an initial node s and an integer i
