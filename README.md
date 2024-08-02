@@ -1,4 +1,4 @@
-#Matching Loop Graph Prototype
+# Matching Loop Graph Prototype
 
 This project is a prototype for the matching loop graph generation algorithm to be used in 
 [the axiom profiler](https://github.com/viperproject/axiom-profiler-2).
