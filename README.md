@@ -94,7 +94,7 @@ fn resn_reassignment(n2, pairs, frontier):
     while let n2 = to_reassign.pop():
         let n1 be the 1st iteration node
         let n2 be the 2nd iteration node
-        let n3 be the 3rd iteration node
+        let n3 be the 3rd iteration node if it exists
         set n1.iteration to None
         set n2.iteration to None
         set n3.iteration to None if it exists
