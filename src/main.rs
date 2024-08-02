@@ -50,7 +50,6 @@ fn find_ith_progenitor(s: &RNode, i: usize) -> Option<RNode> {
 fn reset_iteration_vals(n: &RNode) {
     if n.get_iteration() != None {
         n.set_iteration(None);
-        println!("Set {} to None", n);
         for c in n.borrow().parents.iter() {
             reset_iteration_vals(c);
         }
