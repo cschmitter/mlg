@@ -186,7 +186,7 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
     let max_num_attempts = 4;
     let max_num_node_actions = 100;
 
-    'attempt: for i in 1..=max_num_attempts {
+    'next_attempt: for i in 1..=max_num_attempts {
         println!("Attempt #{i}");
 
         reset_iteration_vals(s);
@@ -210,7 +210,7 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                 || zip(n.borrow().parents.iter(), n_prime.borrow().parents.iter())
                     .any(|(p, p_prime)| p.borrow().name != p_prime.borrow().name)
             {
-                continue 'attempt;
+                continue 'next_attempt;
             }
 
             assert!(
@@ -221,6 +221,10 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
 
             match n.get_iteration() {
                 None => {
+                    if n_prime.get_iteration() != None {
+                        continue 'next_attempt;
+                    }
+
                     n.set_iteration(Some(0));
                     n_prime.set_iteration(Some(1));
 
@@ -232,7 +236,8 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                     continue 'next_node;
                 }
                 Some(0) => {
-                    // if n is in graph check that n, n_prime correspond
+                    // n is in first iteration
+                    // check that n, n_prime correspond
                     let x = pairs
                         .get(&n)
                         .expect("all Nodes assigned iteration 0 are in pairs");
@@ -253,11 +258,11 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                             n,
                             x
                         );
-                        continue 'attempt;
+                        continue 'next_attempt;
                     }
                 }
                 Some(1) => {
-                    // if n is in graph_prime
+                    // n is a start node
                     if let Some(x) = pairs.get(&n) {
                         // if (n, x) has already been seen check that x == n_prime, continue
                         if x == &n_prime {
@@ -277,10 +282,10 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                                 n,
                                 x
                             );
-                            continue 'attempt;
+                            continue 'next_attempt;
                         }
                     } else {
-                        // else mark n_prime as being in graph_prime_prime, try resn resassignment, continue
+                        // else mark n_prime as being in third iteration, try resn resassignment, continue
                         n_prime.set_iteration(Some(2));
                         println!("{}, {}, {:?} onto pairs", n, n_prime, n.get_iteration());
                         pairs.insert(n.clone(), n_prime);
@@ -291,7 +296,7 @@ fn get_mlg(s: &RNode) -> Option<BTreeMap<RNode, RNode>> {
                     }
                 }
                 Some(2) => {
-                    // if n is in graph_prime_prime perform 3rd iteration reassignment
+                    // perform 3rd iteration reassignment
                     thrd_it_reassignment(&n, &mut pairs, &mut frontier);
                     continue 'next_node;
                 }

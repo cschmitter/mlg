@@ -134,6 +134,8 @@ fn get_mlg(s):
             match n.iteration on:
                 None:
                     this means that n has not been seen before
+                    if n_prime.iteration is not None:
+                        continue 'next_attempt
                     set n to first iteration
                     set n_prime to second iteration
                     let parent_pairings = zip(n.parents, n_prime.parents)
