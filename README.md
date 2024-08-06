@@ -17,11 +17,11 @@ fn find_ith_progenitor(s: Node, i: Integer) -> Node or None:
     let nodes be a set of Nodes ordered by depth
 
     for each parent p of s, the initial node:
-        push p onto frontier
+        push p to frontier
 
     while frontier is not empty:
         pop the deepest depth node off of frontier, call it n
-        record that we have visited n by pushing it onto nodes
+        record that we have visited n by pushing it to nodes
 
         if n and s are the same quantifier && i == 1:
             return n
@@ -30,7 +30,7 @@ fn find_ith_progenitor(s: Node, i: Integer) -> Node or None:
 
         for each parent p of n:
             if p is not in nodes (has not been visited):
-                push p onto frontier
+                push p to frontier
 
     return None
 
@@ -41,15 +41,19 @@ fn find_ith_progenitor(s: Node, i: Integer) -> Node or None:
 // this effectively reduces each such corresponding node's iteration by one
 //  -> (in a way that preserves important information about the graph and reuses code)
 fn thrd_it_reassignment(n3, pairs, frontier):
+    let is_leaf_recursive_call be true
     for each child c of n3:
         if c is a 3rd iteration node:
+            set is_leaf_recursive_call to false
             thrd_it_reassignment(c, pairs, frontier)
         else if c is a 1st iteration node:
-            (c1, c2) = pairs.remove_entry(c) 
+            let c1 = c
+            let c2 = pairs.get(c) 
             set c1.iteration to None
             set c2.iteration to None
-            remove (c1, c2) from pairs
-            add (c1, c2) to frontier
+            remove the pair (c1, c2) from pairs
+            push (c1, c2) to frontier
+
     let n1 be the 1st iteration node
     let n2 be the 2nd iteration node
     let n3 be the 3rd iteration node
@@ -58,8 +62,8 @@ fn thrd_it_reassignment(n3, pairs, frontier):
     set n3.iteration to None
     remove the pair (n1, n2) from pairs:
     remove the pair (n2, n3) from pairs:
-    if this is a leaf recursive call:
-        push pair (n2, n3) to frontier:
+    if is_a_leaf_recursive_call:
+        push (n2, n3) to frontier:
 
 fn is_resn(n):
     n is resn iff:
@@ -77,18 +81,19 @@ fn resn_reassignment(n2, pairs, frontier):
     let to_check be the nodes to be checked for being resn start nodes
     let to_reassign be the resn start nodes to be reassigned
 
-    while let x = to_check.pop()
-        for each child c of n2:
+    push n2 to to_check
+    while let x = to_check.pop():
+        for each child c of x:
             if c is a start node (has a child from the first iteration)
                  and c has children from the second iteration:
                 continue
             else if c has a child from the second iteration and is resn:
-                try_resn_reassignment(c, pairs, frontier)
+                push c to to_check
                 continue
             else if c is a start node and is resn:
                 let c_prime be pairs.get(c)
-                resn_reassignment(c, pairs)
-                frontier.push((c, c_prime))
+                push (c, c_prime) to frontier
+                push c to to_reassign
                 continue
 
     while let n2 = to_reassign.pop():
@@ -102,9 +107,9 @@ fn resn_reassignment(n2, pairs, frontier):
         remove the pair (n2, n3) from pairs if it exists
     
         for each parent p of n2:
-            if p is a start node and is resn
-               and p is not a start node and is not from the third iteration:
-            resn_reassignment(p, pairs)
+            if (p is a start node and is resn)
+               or (p is not a start node and is not from the third iteration):
+               push p to to_reassign
             
 // takes initial node that is part of a matching loop
 // performs two-finger matching loop algorithm to identify two complete iterations of a matching loop
