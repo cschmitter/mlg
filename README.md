@@ -53,6 +53,8 @@ fn thrd_it_reassignment(n3, pairs, frontier):
             set c2.iteration to None
             remove the pair (c1, c2) from pairs
             push (c1, c2) to frontier
+        else:
+            continue
 
     let n1 be the 1st iteration node
     let n2 be the 2nd iteration node
@@ -86,14 +88,14 @@ fn resn_reassignment(n2, pairs, frontier):
         for each child c of x:
             if c is a start node (has a child from the first iteration)
                  and c has children from the second iteration:
-                continue
+                 continue
             else if c has a child from the second iteration and is resn:
                 push c to to_check
-                continue
             else if c is a start node and is resn:
                 let c_prime be pairs.get(c)
                 push (c, c_prime) to frontier
                 push c to to_reassign
+            else:
                 continue
 
     while let n2 = to_reassign.pop():
@@ -162,10 +164,8 @@ fn get_mlg(s):
                 third:
                     this means that a first iteration node has a third iteration node as a parent, which is not allowed
                     call thrd_it_reassignment(n, pairs, frontier)
-                otherwise:
-                    panic! no other values are ever used
 
         return pairs
     return None
         
-```
+```              
